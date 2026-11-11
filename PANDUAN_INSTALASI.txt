@@ -1,0 +1,134 @@
+================================================================================
+  PANDUAN INSTALASI & MENJALANKAN — AI Interview SIBI (Enhanced)
+  Bidang: Software Development | Face Recognition Absensi ala Face-main
+================================================================================
+
+PERSYARATAN SISTEM
+------------------
+1. Windows 10/11 (64-bit)
+2. Python 3.10 atau 3.11 (disarankan — mediapipe/deepface lebih stabil)
+3. Webcam / kamera laptop (untuk absensi live & verifikasi wajah)
+4. Koneksi internet (CDN Tailwind, Socket.IO — first run)
+5. (Opsional) Visual Studio Build Tools + CMake — jika ingin pakai face_recognition
+
+LANGKAH 1 — DOWNLOAD / SIAPKAN FILE
+------------------------------------
+Pastikan folder project ada di:
+  AI interview SIBI\AI interview SIBI\
+
+File utama yang dijalankan:
+  - app.py              (server Flask)
+  - requirements.txt    (dependensi Python)
+  - templates\index.html
+  - static\script.js
+  - static\css\app.css
+
+LANGKAH 2 — BUAT VIRTUAL ENVIRONMENT
+-------------------------------------
+Buka PowerShell / CMD, masuk ke folder project:
+
+  cd "C:\Users\dewan\Downloads\AI interview SIBI\AI interview SIBI"
+
+Buat venv (jika belum ada):
+
+  python -m venv venv
+
+Aktifkan venv:
+
+  Windows PowerShell:
+    .\venv\Scripts\Activate.ps1
+
+  Windows CMD:
+    venv\Scripts\activate.bat
+
+LANGKAH 3 — INSTALL DEPENDENSI
+-------------------------------
+Install paket wajib:
+
+  pip install --upgrade pip
+  pip install -r requirements.txt
+
+Jika error protobuf (mediapipe/deepface):
+
+  pip install --upgrade protobuf
+
+FITUR OPSIONAL (disarankan untuk akurasi wajah lebih baik):
+  pip install face_recognition
+  # Butuh CMake + Visual Studio Build Tools di Windows
+
+Jika deepface pertama kali (download model emosi):
+
+  python -c "print('DeepFace siap diinstall')"
+
+LANGKAH 4 — JALANKAN APLIKASI
+------------------------------
+Pastikan venv masih aktif, lalu:
+
+  python app.py
+
+Output di terminal:
+  Starting AI Interview System Enhanced...
+  Open http://127.0.0.1:8000 in your browser
+
+Buka browser: http://127.0.0.1:8000
+
+LANGKAH 5 — CARA PAKAI FITUR BARU
+----------------------------------
+A. CV Screening & Interview
+   1. Klik "CV Screening & Interview"
+   2. Upload CV (nama + teks CV min. 50 karakter)
+   3. Halaman Absensi & Verifikasi Wajah:
+      - Tab "Live Absensi (Kamera Server)" → klik "Mulai Live Absensi"
+      - Wajah dikenali → progress bar 0–100% → ABSEN OK
+      - Tabel kanan menampilkan absensi hari ini (auto refresh)
+   4. Daftar wajah (accordion bawah):
+      - Isi nama SAMA dengan nama di CV
+      - Klik "Daftar dari Kamera" (otomatis pakai kamera browser)
+   5. Setelah absensi/verifikasi sukses → "Lanjut ke Analisis CV"
+
+B. HR Dashboard
+   - Statistik kandidat dan custom pertanyaan interview per role
+   - Analitik rekrutmen agregat: CV dianalisis, interview dimulai/selesai,
+     tingkat penyelesaian, kelulusan, dan ringkasan per posisi
+   - Klik "Lihat laporan publik" untuk membuka laporan tanpa identitas kandidat.
+     Laporan dapat dibagikan jika aplikasi sudah di-deploy pada host yang dapat
+     dijangkau penerima; CSV tersedia melalui tombol "Unduh laporan CSV".
+
+   Catatan: laporan membaca data sementara dalam memori aplikasi. Data hilang
+   saat server dimulai ulang atau metrik direset. Laporan ini tidak mengumpulkan
+   data demografis/disabilitas dan tidak mengukur kesetaraan hasil antar kelompok.
+   Server bawaan hanya listen di localhost; sebelum deployment publik, amankan
+   endpoint HR/admin dan gunakan konfigurasi deployment yang sesuai.
+
+C. Mode Kamera Browser (alternatif)
+   - Tab "Kamera Browser" → verifikasi manual capture / database
+
+FILE DATA YANG DIBUAT OTOMATIS
+-------------------------------
+  face_database.pkl     — database encoding wajah terdaftar
+  attendance_log.json   — log absensi harian
+  custom_questions.json — pertanyaan custom HR
+
+TROUBLESHOOTING
+---------------
+| Masalah                              | Solusi                                      |
+|--------------------------------------|---------------------------------------------|
+| Kamera live tidak muncul             | Izinkan akses webcam; cek tidak dipakai app lain |
+| "Database wajah kosong"              | Daftar wajah dulu di accordion pengaturan   |
+| OpenCV error                         | pip install opencv-python --upgrade         |
+| SIBI tidak aktif                     | pip install mediapipe scikit-learn pandas   |
+| Emotion tidak aktif                  | pip install deepface tf-keras               |
+| Port 8000 sudah dipakai              | Tutup proses lain atau ubah port di app.py  |
+| face_recognition gagal install       | Tetap jalan dengan OpenCV fallback          |
+
+REQUIREMENTS.TXT (RINGKASAN PAKET)
+----------------------------------
+flask, flask-socketio, python-engineio, python-socketio
+numpy, pillow, opencv-python
+mediapipe, scikit-learn, pandas        (SIBI)
+deepface, tf-keras                     (Emotion)
+pypdf2, python-docx                    (CV parsing)
+
+================================================================================
+Selesai! Jalankan: python app.py → buka http://127.0.0.1:8000
+================================================================================

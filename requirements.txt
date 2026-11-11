@@ -1,0 +1,18 @@
+flask>=2.3.0
+flask-socketio>=5.3.0
+python-engineio>=4.5.0
+python-socketio>=5.8.0
+numpy>=1.24.0
+pillow>=10.0.0
+opencv-python>=4.8.0.76
+mediapipe>=0.10.0
+scikit-learn>=1.3.0
+pandas>=2.0.0
+deepface>=0.0.79
+tf-keras>=2.16.0
+pypdf2>=3.0.0
+python-docx>=1.0.0
+python-dateutil>=2.8.2
+# Opsional — akurasi face recognition lebih baik (butuh CMake + VS Build Tools di Windows):
+# face_recognition>=1.3.0
+# dlib>=19.24.0

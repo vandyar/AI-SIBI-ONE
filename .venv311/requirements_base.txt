@@ -1,0 +1,8 @@
+requests>=2.27.1
+numpy>=1.14.0
+gdown>=3.10.1
+tqdm>=4.30.0
+opencv-contrib-python-headless>=4.5.5.64
+onnxruntime>=1.13.0
+retina-face>=0.0.19
+pandas>=0.23.4

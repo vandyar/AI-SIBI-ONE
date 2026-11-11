@@ -1,0 +1,67 @@
+# ============================================================
+# requirements.txt — AI Interview Platform + Fitur Baru
+# ============================================================
+# Install semua: pip install -r requirements.txt
+#
+# Catatan Windows:
+#   - dlib (face_recognition) butuh CMake & Visual Studio Build Tools
+#   - mediapipe tidak support Python >3.11 di beberapa versi
+#   - Gunakan Python 3.10 atau 3.11 untuk kompatibilitas terbaik
+
+# ── Core Framework ─────────────────────────────────────────
+flask>=2.3.0
+flask-socketio>=5.3.0
+python-engineio>=4.5.0
+python-socketio>=5.8.0
+
+# ── Utilities ──────────────────────────────────────────────
+numpy>=1.24.0
+pillow>=10.0.0
+python-dateutil>=2.8.2
+
+# ── Computer Vision ────────────────────────────────────────
+opencv-python>=4.8.0.76        # cv2 untuk face detection fallback
+
+# ── Hand Gesture / SIBI Recognition ───────────────────────
+mediapipe>=0.10.0               # hand keypoints untuk SIBI
+scikit-learn>=1.3.0             # SVM model prediksi isyarat
+pandas>=2.0.0                   # load CSV dataset SIBI
+
+# ── Emotion Detection ──────────────────────────────────────
+deepface>=0.0.79                # wrapper multi-model emotion detection
+tf-keras>=2.16.0                # required by deepface (Keras backend)
+# tensorflow>=2.13.0            # alternatif jika tf-keras gagal
+
+# ── Face Recognition (opsional, gunakan jika tersedia) ────
+# face_recognition>=1.3.0       # butuh dlib & CMake; hapus # jika ingin aktifkan
+# dlib>=19.24.0                 # dependency face_recognition
+
+# ── Anti-Cheat (MediaPipe Face Mesh) ──────────────────────
+# mediapipe sudah mencakup face mesh — tidak perlu library tambahan
+
+# ── Portfolio Analyzer ─────────────────────────────────────
+# Menggunakan urllib.request (built-in Python) — tidak perlu library tambahan
+# Opsional untuk scraping LinkedIn lebih canggih:
+# requests>=2.31.0              # HTTP client alternatif
+# beautifulsoup4>=4.12.0        # HTML parsing (jika scraping LinkedIn)
+
+# ── CV Analysis (sudah ada di project asli) ───────────────
+pypdf2>=3.0.0                   # atau: pypdf>=3.0.0
+pdfplumber>=0.10.0              # ekstrak teks PDF dengan lebih baik
+python-docx>=1.0.0              # baca file .docx CV
+
+# ── Development & Testing ──────────────────────────────────
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# ── Catatan versi ──────────────────────────────────────────
+# Jika muncul error "cannot import name 'builder' from 'google.protobuf'":
+#   pip install --upgrade protobuf
+#
+# Jika deepface gagal download model:
+#   Jalankan sekali: python -c "from deepface import DeepFace; DeepFace.analyze('test.jpg', actions=['emotion'])"
+#   Model akan di-cache di ~/.deepface/
+#
+# Jika mediapipe tidak tersedia (ARM / macOS M1):
+#   pip install mediapipe-silicon  (untuk M1/M2)

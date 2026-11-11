@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laporan Transparansi Rekrutmen</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    body { margin: 0; padding: 2rem 1rem; color: #172033; font-family: Arial, sans-serif; }
+    .report-wrap { max-width: 1100px; margin: auto; }
+    .report-header, .report-panel { padding: 1.5rem; border: 1px solid #dbe3f0; border-radius: 14px; background: #fff; }
+    .report-header { margin-bottom: 1rem; background: linear-gradient(135deg, #eef2ff, #f8fafc); }
+    .report-header h1 { margin: 0 0 .5rem; }
+    .report-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+    .report-actions a { padding: .65rem .9rem; border-radius: 8px; background: #4338ca; color: white; text-decoration: none; font-weight: 600; }
+    .report-actions a.secondary { background: #475569; }
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
+    .report-card { padding: 1rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+    .report-card p { margin: 0 0 .5rem; color: #475569; font-size: .9rem; }
+    .report-card strong { color: #3730a3; font-size: 1.7rem; }
+    .report-panel { margin-top: 1rem; }
+    .report-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: .75rem; }
+    th, td { padding: .75rem; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    th { background: #eef2ff; }
+    .report-note { padding: 1rem; border-left: 4px solid #6366f1; background: #f8fafc; color: #475569; line-height: 1.6; }
+    #public-report-error { color: #b91c1c; }
+    @media print { body { padding: 0; background: white; } .report-actions { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="report-wrap">
+    <header class="report-header">
+      <h1>Laporan Transparansi Rekrutmen</h1>
+      <p>Ringkasan statistik proses rekrutmen untuk mendukung evaluasi perusahaan berbasis data.</p>
+      <p id="public-report-updated">Memuat data...</p>
+      <nav class="report-actions" aria-label="Aksi laporan">
+        <a href="{{ url_for('public_recruitment_report_csv') }}">Unduh CSV</a>
+        <a class="secondary" href="javascript:window.print()">Cetak / Simpan PDF</a>
+      </nav>
+    </header>
+
+    <p id="public-report-error" role="alert"></p>
+
+    <section class="report-panel" aria-labelledby="overview-title">
+      <h2 id="overview-title">Ringkasan proses</h2>
+      <div id="public-report-summary" class="report-grid">
+        <article class="report-card"><p>Memuat statistik...</p></article>
+      </div>
+    </section>
+
+    <section class="report-panel" aria-labelledby="positions-title">
+      <h2 id="positions-title">Statistik per posisi</h2>
+      <div class="report-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Posisi</th><th>Pelamar</th><th>CV dianalisis</th>
+              <th>Interview dimulai</th><th>Interview selesai</th><th>Lolos</th>
+              <th>Kelulusan interview</th>
+            </tr>
+          </thead>
+          <tbody id="public-report-positions">
+            <tr><td colspan="7">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="report-panel" aria-labelledby="method-title">
+      <h2 id="method-title">Cakupan dan metodologi</h2>
+      <p class="report-note">
+        Angka ini merupakan agregat pelamar unik pada sesi aplikasi yang sedang berjalan. Identitas kandidat tidak ditampilkan.
+        CV dianalisis dihitung dari catatan CV yang tersedia; tingkat penyelesaian adalah interview selesai dibanding interview dimulai;
+        tingkat kelulusan adalah kandidat lolos dibanding interview selesai. Data disimpan sementara di memori aplikasi dan akan
+        hilang saat aplikasi dimulai ulang atau metrik direset. Data demografis dan disabilitas tidak dikumpulkan di laporan ini,
+        sehingga statistik ini tidak dapat digunakan sendiri untuk menyimpulkan kesetaraan hasil antar kelompok.
+      </p>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='recruitment_report.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Interview System Enhanced</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet"/>
+  <style>
+    .gradient-bg { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); }
+    .chat-bubble { animation: fadeInUp .5s ease-out; }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .typing-indicator { display:inline-block;width:20px;height:20px;border:3px solid #f3f3f3;border-top:3px solid #3498db;border-radius:50%;animation:spin 1s linear infinite; }
+    @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    .step-bar { display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:2rem; }
+    .step-item { display:flex;flex-direction:column;align-items:center;position:relative; }
+    .step-circle { width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;border:2px solid #d1d5db;background:white;color:#9ca3af;transition:all .3s;z-index:1; }
+    .step-circle.active { border-color:#6366f1;background:#6366f1;color:white; }
+    .step-circle.done { border-color:#10b981;background:#10b981;color:white; }
+    .step-label { font-size:11px;color:#6b7280;margin-top:4px;white-space:nowrap; }
+    .step-label.active { color:#6366f1;font-weight:600; }
+    .step-label.done { color:#10b981; }
+    .step-line { width:60px;height:2px;background:#d1d5db;margin-bottom:20px;transition:background .3s; }
+    .step-line.done { background:#10b981; }
+    @keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .animate-pulse { animation:pulse-red 1s ease-in-out infinite; }
+    /* Feature badges */
+    .feature-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600; }
+    /* SIBI Panel */
+    .sibi-panel { background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-top:10px; }
+    .sibi-display { min-height:55px;background:#0f172a;border-radius:8px;padding:10px;margin-bottom:8px;font-family:monospace; }
+    .sibi-label { font-size:2em;font-weight:800;color:#38bdf8; }
+    .sibi-sentence { margin-top:6px;font-size:.85em;color:#e2e8f0;word-break:break-all; }
+    /* Emotion badge */
+    .emotion-overlay { position:absolute;top:8px;left:8px;z-index:10; }
+    .emotion-badge { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);font-size:.82em;font-weight:600; }
+    /* Risk indicator */
+    .risk-overlay { position:absolute;top:8px;right:8px;z-index:10;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:.75em;color:white; }
+    /* Anti-cheat alert */
+    #anticheat-alert { position:fixed;top:16px;right:16px;z-index:9999;padding:12px 18px;border-radius:10px;border:1px solid;font-weight:600;font-size:13px;display:none;max-width:340px;box-shadow:0 4px 14px rgba(0,0,0,.18); }
+    /* Portfolio section */
+    .portfolio-card { background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-top:12px; }
+    .github-stat { text-align:center;padding:8px 12px;background:white;border-radius:8px;border:1px solid #e2e8f0; }
+    .github-stat span { display:block;font-size:1.3em;font-weight:700;color:#1e293b; }
+    .github-stat label { display:block;font-size:.7em;color:#94a3b8;margin-top:2px; }
+    .lang-badge { background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;padding:2px 8px;border-radius:12px;font-size:.78em;display:inline-block;margin:2px; }
+    .repo-item { background:white;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:6px; }
+    .score-ring { width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4em;font-weight:800;border:4px solid; }
+    /* Toggle switch */
+    .toggle-switch { position:relative;display:inline-block;width:42px;height:22px; }
+    .toggle-switch input { opacity:0;width:0;height:0; }
+    .toggle-slider { position:absolute;inset:0;background:#475569;border-radius:22px;cursor:pointer;transition:.3s; }
+    .toggle-slider:before { content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s; }
+    input:checked + .toggle-slider { background:#3b82f6; }
+    input:checked + .toggle-slider:before { transform:translateX(20px); }
+    /* loading spinner */
+    .spinner { width:32px;height:32px;border:3px solid #e2e8f0;border-top:3px solid #6366f1;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px; }
+  </style>
+</head>
+<body class="app-body min-h-screen">
+
+<!-- Anti-cheat alert popup -->
+<div id="anticheat-alert"></div>
+
+<!-- Header -->
+<header class="app-header gradient-bg text-white shadow-lg">
+  <div class="container mx-auto px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3 flex-wrap gap-2">
+        <i class="fas fa-robot text-3xl"></i>
+        <h1 class="text-2xl font-bold">Advanced AI Interview System</h1>
+        <span class="feature-badge bg-yellow-400 text-black">Python</span>
+        <span class="feature-badge bg-purple-400 text-white">NLP</span>
+        <span class="feature-badge bg-blue-400 text-white">🤟 SIBI</span>
+        <span class="feature-badge bg-green-400 text-white">😊 Emosi</span>
+        <span class="feature-badge bg-red-400 text-white">🛡 Anti-Contek</span>
+      </div>
+      <div class="text-sm opacity-90 hidden md:block">Powered by Python, Flask & AI</div>
+    </div>
+  </div>
+</header>
+
+<!-- Main Menu -->
+<section id="menu-selection-section" class="container mx-auto px-6 py-8 anim-section">
+  <div class="white-panel white-panel--compact p-6 md:p-8 text-center max-w-3xl mx-auto">
+    <div class="icon-ring icon-ring--indigo mx-auto mb-4 anim-icon-float">
+      <i class="fas fa-code text-3xl text-indigo-600"></i>
+    </div>
+    <h2 class="text-2xl font-bold mb-2 text-gray-800 anim-fade-up">Pilih Mode</h2>
+    <p class="text-gray-600 mb-6 text-sm anim-fade-up anim-delay-1">Platform rekrutmen berbasis AI untuk Software Development & tim HR</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <button id="menu-hr-btn" class="menu-card menu-card-hr font-semibold text-lg text-left anim-fade-up anim-delay-2">
+        <i class="fas fa-tachometer-alt text-3xl mb-3 block menu-card-icon"></i>
+        <span class="menu-card-title">HR Dashboard</span>
+        <p class="text-sm mt-2 font-normal menu-card-desc">Metrik kandidat, pertanyaan interview, statistik posisi</p>
+      </button>
+      <button id="menu-cv-btn" class="menu-card menu-card-cv font-semibold text-lg text-left anim-fade-up anim-delay-3">
+        <i class="fas fa-file-alt text-3xl mb-3 block menu-card-icon"></i>
+        <span class="menu-card-title">CV Screening & Interview</span>
+        <p class="text-sm mt-2 font-normal menu-card-desc">Upload CV, absensi wajah, analisis AI, wawancara live</p>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Step Progress -->
+<div id="step-progress-bar" class="container mx-auto px-6 pt-8 pb-2 max-w-4xl hidden">
+  <div class="step-bar">
+    <div class="step-item"><div class="step-circle active" id="step-circle-1">1</div><div class="step-label active" id="step-label-1">Upload CV</div></div>
+    <div class="step-line" id="step-line-1"></div>
+    <div class="step-item"><div class="step-circle" id="step-circle-2">2</div><div class="step-label" id="step-label-2">Verifikasi</div></div>
+    <div class="step-line" id="step-line-2"></div>
+    <div class="step-item"><div class="step-circle" id="step-circle-3">3</div><div class="step-label" id="step-label-3">Analisis CV</div></div>
+    <div class="step-line" id="step-line-3"></div>
+    <div class="step-item"><div class="step-circle" id="step-circle-4">4</div><div class="step-label" id="step-label-4">Pilih Posisi</div></div>
+    <div class="step-line" id="step-line-4"></div>
+    <div class="step-item"><div class="step-circle" id="step-circle-5">5</div><div class="step-label" id="step-label-5">Interview</div></div>
+  </div>
+</div>
+
+<!-- HR Dashboard -->
+<section id="hr-dashboard-section" class="hr-dashboard-shell hidden">
+  <aside class="dashboard-sidebar" aria-label="Navigasi HR">
+    <a class="dashboard-brand" href="#hr-overview" aria-label="InclusiHire dashboard HR">
+      <span class="dashboard-brand-mark"><i class="fas fa-people-group"></i></span>
+      <span><strong>InclusiHire</strong><small>Inclusive Recruitment<br>for a Better Future</small></span>
+    </a>
+    <nav class="dashboard-nav">
+      <a class="active" href="#hr-overview"><i class="fas fa-house"></i>Dashboard</a>
+      <a href="#hr-candidates"><i class="fas fa-users"></i>Applicants</a>
+      <a href="#hr-analytics"><i class="fas fa-chart-column"></i>HR Analytics</a>
+      <a href="#hr-questions"><i class="fas fa-clipboard-question"></i>Interview Questions</a>
+      <a href="{{ url_for('public_recruitment_report') }}" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-lines"></i>Reports</a>
+    </nav>
+    <div class="dashboard-sidebar-bottom">
+      <div class="dashboard-help"><i class="fas fa-headset"></i><strong>Butuh bantuan?</strong><small>Platform rekrutmen inklusif</small></div>
+      <button id="menu-back-btn-hr" class="dashboard-menu-back"><i class="fas fa-arrow-left"></i>Kembali ke menu</button>
+    </div>
+  </aside>
+  <div class="dashboard-main">
+    <header class="dashboard-topbar">
+      <button class="dashboard-mobile-menu" type="button" aria-label="Buka navigasi"><i class="fas fa-bars"></i></button>
+      <div class="dashboard-search"><i class="fas fa-search"></i><span>Dashboard rekrutmen inklusif</span></div>
+      <div class="dashboard-user"><span class="dashboard-avatar"><i class="fas fa-user-tie"></i></span><span><strong>Tim HR</strong><small>HR Recruiter</small></span><i class="fas fa-chevron-down"></i></div>
+    </header>
+    <div class="dashboard-content">
+      <section id="hr-overview" class="dashboard-hero">
+        <div>
+          <p class="dashboard-eyebrow">INCLUSIVE RECRUITMENT</p>
+          <h2>Selamat datang kembali, HR! <span aria-hidden="true">👋</span></h2>
+          <p>Pantau proses seleksi dan bangun tim yang lebih inklusif.</p>
+        </div>
+        <div class="dashboard-hero-art" aria-hidden="true"><i class="fas fa-people-group"></i></div>
+      </section>
+
+      <div class="dashboard-stats" aria-label="Ringkasan kandidat">
+        <article class="dashboard-stat stat-blue"><span class="dashboard-stat-icon"><i class="fas fa-briefcase"></i></span><div><p>Total Applicants</p><strong id="hr-total-applicants">0</strong></div><i class="fas fa-arrow-trend-up dashboard-stat-trend"></i></article>
+        <article class="dashboard-stat stat-purple"><span class="dashboard-stat-icon"><i class="fas fa-users"></i></span><div><p>Shortlisted</p><strong id="hr-passed">0</strong></div><i class="fas fa-arrow-trend-up dashboard-stat-trend"></i></article>
+        <article class="dashboard-stat stat-green"><span class="dashboard-stat-icon"><i class="fas fa-circle-check"></i></span><div><p>Interviewed</p><strong id="hr-completed-interviews">0</strong></div><i class="fas fa-arrow-trend-up dashboard-stat-trend"></i></article>
+        <article class="dashboard-stat stat-orange"><span class="dashboard-stat-icon"><i class="fas fa-star"></i></span><div><p>Skor Rata-rata</p><strong id="hr-average-score">0</strong></div><button id="hr-reset-btn" class="dashboard-reset" type="button">Reset</button></article>
+      </div>
+
+      <div class="dashboard-grid">
+        <section id="hr-analytics" class="dashboard-card dashboard-analytics" aria-labelledby="hr-analytics-title">
+          <div class="dashboard-card-heading">
+            <h3 id="hr-analytics-title"><i class="fas fa-chart-column"></i> Recruitment Overview</h3>
+            <details id="hr-overflow-menu" class="hr-overflow-menu">
+              <summary class="hr-overflow-trigger dashboard-view-link" aria-label="Buka laporan dan statistik HR" title="Laporan dan statistik">Laporan <i class="fas fa-chevron-down" aria-hidden="true"></i></summary>
+              <div class="hr-overflow-panel">
+                <a href="{{ url_for('public_recruitment_report') }}" target="_blank" rel="noopener noreferrer" class="hr-report-link">
+                  <i class="fas fa-chart-bar" aria-hidden="true"></i><span>Lihat laporan publik</span><i class="fas fa-external-link-alt ml-auto text-xs" aria-hidden="true"></i>
+                </a>
+                <h3 class="px-1 pt-3 pb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Ringkasan kandidat</h3>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="hr-menu-stat border-red-200"><p>Kandidat gagal</p><strong id="hr-failed" class="text-red-700">0</strong></div>
+                  <div class="hr-menu-stat border-purple-200"><p>Skor rata-rata</p><strong class="text-purple-700" data-hr-average-score>0</strong></div>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="dashboard-analytics-callout">
+            <div><h4>Analitik Rekrutmen Inklusif</h4><p>Ringkasan agregat proses untuk evaluasi berbasis data.</p></div>
+            <i class="fas fa-chart-line" aria-hidden="true"></i>
+          </div>
+          <div class="dashboard-analytics-stats">
+            <div><span>CV dianalisis</span><strong id="analytics-screened">0</strong></div>
+            <div><span>Interview dimulai</span><strong id="analytics-started">0</strong></div>
+            <div><span>Interview selesai</span><strong id="analytics-completed">0</strong></div>
+            <div><span>Tingkat penyelesaian</span><strong id="analytics-completion-rate">0%</strong></div>
+          </div>
+          <div class="dashboard-position-summary"><h4>Ringkasan per posisi</h4><div id="analytics-position-list"><p>Memuat laporan...</p></div></div>
+          <div class="dashboard-report-foot">
+            <p id="analytics-updated">Data laporan dimuat dari sesi aplikasi saat ini.</p>
+            <a href="{{ url_for('public_recruitment_report_csv') }}">Unduh laporan CSV</a>
+          </div>
+          <p class="dashboard-privacy-note">Laporan hanya memuat agregat dan tidak menampilkan identitas kandidat. Data demografis atau disabilitas tidak dikumpulkan di laporan ini, sehingga metrik ini bukan ukuran langsung kesetaraan hasil antar kelompok.</p>
+        </section>
+
+        <section id="hr-candidates" class="dashboard-card dashboard-candidates">
+          <div class="dashboard-card-heading"><h3><i class="fas fa-users"></i> Candidate Overview</h3><span class="dashboard-view-link">Detail kandidat</span></div>
+          <div id="hr-candidate-detail" class="dashboard-candidate-list">Belum ada detail kandidat.</div>
+          <div class="dashboard-candidate-note"><i class="fas fa-lightbulb"></i><span>Gunakan ringkasan agregat untuk mendukung proses seleksi yang inklusif dan setara.</span></div>
+        </section>
+
+        <section id="hr-questions" class="dashboard-card dashboard-questions">
+          <div class="dashboard-card-heading"><h3><i class="fas fa-clipboard-question"></i> Interview Questions</h3></div>
+          <p class="dashboard-section-intro">Kelola pertanyaan interview untuk setiap posisi (maksimal 10 pertanyaan per role).</p>
+          <div class="space-y-4">
+            <div>
+              <label for="question-role" class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <select id="question-role" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="general">General</option>
+                <option value="software-developer">Software Developer</option>
+                <option value="data-scientist">Data Scientist</option>
+                <option value="product-manager">Product Manager</option>
+              </select>
+            </div>
+            <div id="questions-list" class="space-y-2"></div>
+            <div class="flex flex-wrap gap-2">
+              <button id="add-question-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Question</button>
+              <button id="load-questions-btn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Refresh</button>
+              <button id="save-all-questions-btn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Save All</button>
+            </div>
+          </div>
+        </section>
+        <section class="dashboard-card dashboard-quick-actions">
+          <div class="dashboard-card-heading"><h3><i class="fas fa-bolt"></i> Quick Actions</h3></div>
+          <a href="{{ url_for('public_recruitment_report') }}" target="_blank" rel="noopener noreferrer"><i class="fas fa-chart-bar"></i><span>View Reports</span></a>
+          <a href="{{ url_for('public_recruitment_report_csv') }}"><i class="fas fa-file-csv"></i><span>Download CSV</span></a>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTENT -->
+<main class="container mx-auto px-6 py-4">
+
+  <!-- STEP 1: CV UPLOAD -->
+  <div id="cv-upload-section" class="candidate-dashboard-shell hidden anim-section">
+    <aside class="dashboard-sidebar candidate-sidebar" aria-label="Navigasi kandidat">
+      <a class="dashboard-brand" href="#candidate-overview" aria-label="InclusiHire dashboard kandidat">
+        <span class="dashboard-brand-mark"><i class="fas fa-people-group"></i></span>
+        <span><strong>InclusiHire</strong><small>Candidate Workspace<br>Inclusive Recruitment</small></span>
+      </a>
+      <nav class="dashboard-nav">
+        <a class="active" href="#candidate-overview"><i class="fas fa-house"></i>Dashboard</a>
+        <a href="#candidate-journey"><i class="fas fa-list-check"></i>Alur Kandidat</a>
+        <a href="#candidate-application"><i class="fas fa-file-lines"></i>CV Screening</a>
+        <a href="#candidate-tools"><i class="fas fa-universal-access"></i>Fitur Aksesibilitas</a>
+      </nav>
+      <div class="dashboard-sidebar-bottom">
+        <div class="dashboard-help"><i class="fas fa-headset"></i><strong>Butuh bantuan?</strong><small>Mulai proses lamaran Anda</small></div>
+        <button id="menu-back-btn-cv" class="dashboard-menu-back"><i class="fas fa-arrow-left"></i>Kembali ke menu</button>
+      </div>
+    </aside>
+    <div class="dashboard-main candidate-dashboard-main">
+      <header class="dashboard-topbar">
+        <button class="dashboard-mobile-menu" type="button" aria-label="Buka navigasi"><i class="fas fa-bars"></i></button>
+        <div class="dashboard-search"><i class="fas fa-search"></i><span>CV Screening & Interview</span></div>
+        <div class="dashboard-user"><span class="dashboard-avatar candidate-avatar"><i class="fas fa-user"></i></span><span><strong>Dashboard Kandidat</strong><small>Candidate Workspace</small></span></div>
+      </header>
+      <div class="candidate-dashboard-content">
+        <section id="candidate-overview" class="dashboard-hero candidate-hero">
+          <div>
+            <p class="dashboard-eyebrow">CANDIDATE WORKSPACE</p>
+            <h2>Selamat datang! <span aria-hidden="true">👋</span></h2>
+            <p>Mulai perjalanan karier Anda melalui proses rekrutmen yang inklusif.</p>
+          </div>
+          <div class="dashboard-hero-art" aria-hidden="true"><i class="fas fa-user-astronaut"></i></div>
+        </section>
+        <section id="candidate-journey" class="candidate-journey" aria-label="Alur seleksi kandidat">
+          <article><span><i class="fas fa-file-arrow-up"></i></span><strong>01</strong><h3>Analisis CV</h3><p>Unggah CV untuk mendapatkan rekomendasi posisi.</p></article>
+          <article><span><i class="fas fa-user-check"></i></span><strong>02</strong><h3>Verifikasi</h3><p>Verifikasi wajah sebelum melanjutkan proses.</p></article>
+          <article><span><i class="fas fa-comments"></i></span><strong>03</strong><h3>Interview AI</h3><p>Ikuti wawancara sesuai posisi yang dipilih.</p></article>
+          <article><span><i class="fas fa-chart-pie"></i></span><strong>04</strong><h3>Hasil</h3><p>Lihat rangkuman performa setelah interview.</p></article>
+        </section>
+        <div id="candidate-tools" class="candidate-feature-strip">
+          <span><i class="fas fa-hands-asl-interpreting"></i> Dukungan SIBI</span>
+          <span><i class="fas fa-universal-access"></i> Proses inklusif</span>
+          <span><i class="fas fa-shield-halved"></i> Anti-cheat & deteksi emosi</span>
+        </div>
+        <div id="candidate-application" class="white-panel white-panel--compact p-6 md:p-8 candidate-application">
+      <div class="text-center mb-6 anim-fade-up">
+        <div class="icon-ring icon-ring--indigo mx-auto mb-4 anim-icon-float">
+          <i class="fas fa-file-code text-3xl text-indigo-600"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Upload Your CV / Resume</h2>
+        <p class="text-gray-600 text-sm">Upload CV untuk dianalisis AI dan temukan pekerjaan Software Development yang cocok</p>
+      </div>
+      <form id="cv-upload-form" class="space-y-4">
+        <div class="anim-fade-up anim-delay-1">
+          <label for="candidate-name-cv" class="form-label">Nama Lengkap</label>
+          <input type="text" id="candidate-name-cv" required class="light-input w-full px-4 py-2.5 anim-input-focus" placeholder="Masukkan nama lengkap Anda"/>
+        </div>
+        <div class="anim-fade-up anim-delay-2">
+          <label for="cv-text" class="form-label">Teks CV / Resume</label>
+          <textarea id="cv-text" required rows="7" class="light-input w-full px-4 py-3 resize-none anim-input-focus" placeholder="Tempel teks CV Anda di sini. Sertakan skill, pengalaman, pendidikan..."></textarea>
+          <p class="form-hint"><i class="fas fa-info-circle mr-1"></i>Minimal 50 karakter</p>
+        </div>
+        <button type="submit" id="cv-submit-btn" class="w-full btn-indigo btn-shine py-2.5 px-6 anim-fade-up anim-delay-3">
+          <i class="fas fa-upload mr-2"></i>Analisis CV Saya
+        </button>
+      </form>
+      <div id="cv-upload-loading" class="hidden mt-5 flex justify-center items-center space-x-3 anim-fade-up">
+        <div class="typing-indicator"></div>
+        <span class="text-gray-600 text-sm">Menganalisis CV...</span>
+      </div>
+      <div id="cv-upload-error" class="hidden mt-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm anim-fade-up"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: FACE RECOGNITION / ABSENSI -->
+  <div id="face-recognition-section" class="max-w-4xl mx-auto hidden anim-section">
+    <div class="white-panel white-panel--compact p-5 md:p-6">
+      <div class="text-center mb-4 anim-fade-up">
+        <div class="icon-ring icon-ring--indigo mx-auto mb-3 anim-icon-float">
+          <i class="fas fa-user-check text-2xl text-indigo-600"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1">Absensi & Verifikasi Wajah</h2>
+        <p class="text-gray-600 text-sm">Live scan — progress bar otomatis saat wajah dikenali</p>
+      </div>
+      <div id="face-status-badge" class="flex justify-center mb-3 anim-fade-up anim-delay-1">
+        <span class="status-badge status-badge--waiting">
+          <i class="fas fa-clock mr-1"></i>Menunggu Verifikasi
+        </span>
+      </div>
+
+      <div class="face-mode-tabs face-mode-tabs--light anim-fade-up anim-delay-2">
+        <button type="button" id="face-mode-server" class="face-mode-tab active"><i class="fas fa-broadcast-tower mr-1"></i>Live Absensi (Kamera Server)</button>
+        <button type="button" id="face-mode-browser" class="face-mode-tab"><i class="fas fa-laptop mr-1"></i>Kamera Browser</button>
+      </div>
+
+      <div class="face-layout face-layout--compact anim-fade-up anim-delay-3">
+        <div>
+          <div class="face-feed-wrap face-feed-wrap--light face-feed-wrap--compact" id="face-feed-container">
+            <span class="face-corner face-corner-tl"></span>
+            <span class="face-corner face-corner-tr"></span>
+            <span class="face-corner face-corner-bl"></span>
+            <span class="face-corner face-corner-br"></span>
+            <div class="face-scan-line" id="face-scan-line"></div>
+            <img id="face-live-feed" src="" alt="Live face recognition" class="hidden"/>
+            <video id="face-video" autoplay muted playsinline class="hidden w-full"></video>
+            <canvas id="face-overlay-canvas" class="absolute inset-0 w-full h-full pointer-events-none hidden" style="position:absolute;top:0;left:0;"></canvas>
+            <div id="face-feed-placeholder" class="flex flex-col items-center justify-center py-10 text-gray-600">
+              <i class="fas fa-video text-3xl mb-2 text-indigo-500"></i>
+              <p class="text-sm">Klik "Mulai Live Absensi" untuk memulai</p>
+            </div>
+          </div>
+          <canvas id="face-canvas" style="display:none"></canvas>
+          <div class="flex flex-wrap gap-2 mt-3">
+            <button type="button" id="start-live-absensi-btn" class="btn-indigo btn-shine flex-1 py-2 px-3 text-sm">
+              <i class="fas fa-play mr-1"></i>Mulai Live Absensi
+            </button>
+            <button type="button" id="stop-live-absensi-btn" class="btn-gray flex-1 py-2 px-3 text-sm hidden">
+              <i class="fas fa-stop mr-1"></i>Stop Live
+            </button>
+            <button type="button" id="start-camera-btn" class="btn-green flex-1 py-2 px-3 text-sm hidden">
+              <i class="fas fa-video mr-1"></i>Kamera Browser
+            </button>
+            <button type="button" id="capture-face-btn" class="btn-indigo flex-1 py-2 px-3 text-sm hidden">
+              <i class="fas fa-camera mr-1"></i>Capture
+            </button>
+          </div>
+          <div id="face-result" class="mt-3 p-3 rounded-lg border border-gray-300 text-sm bg-gray-50 text-gray-700 min-h-10 flex items-center">
+            <i class="fas fa-info-circle mr-2 text-indigo-500"></i>Hasil verifikasi / absensi tampil di sini.
+          </div>
+        </div>
+
+        <div class="attendance-panel attendance-panel--light attendance-panel--compact">
+          <h3 class="text-base font-bold text-gray-800">
+            <span><i class="fas fa-calendar-check text-indigo-600 mr-2"></i>Absensi Hari Ini</span>
+            <span class="attendance-count-pill attendance-count-pill--light"><span id="today-scan-count">0</span> scan</span>
+          </h3>
+          <div class="attendance-table-wrap attendance-table-wrap--light">
+            <table class="attendance-table attendance-table--light">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nama</th>
+                  <th>Peran</th>
+                  <th>Waktu</th>
+                </tr>
+              </thead>
+              <tbody id="scandata"></tbody>
+            </table>
+          </div>
+          <p class="form-hint mt-2"><i class="fas fa-sync-alt mr-1"></i> Diperbarui otomatis setiap detik</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 anim-fade-up">
+        <label class="inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="use-face-recognition" class="form-checkbox h-4 w-4 text-indigo-600" checked/>
+          <span class="ml-2 text-gray-800 text-sm font-medium">Wajib verifikasi wajah sebelum lanjut</span>
+        </label>
+        <button type="button" id="skip-face-recognition" class="bg-gray-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-gray-600 transition">
+          <i class="fas fa-forward mr-1"></i>Lewati
+        </button>
+      </div>
+
+      <details class="face-admin-accordion face-admin-accordion--light mt-4">
+        <summary><i class="fas fa-cog mr-2 text-indigo-600"></i>Pengaturan Database Wajah & Referensi</summary>
+        <div class="face-admin-body face-admin-body--light space-y-4">
+          <div class="text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <i class="fas fa-shield-alt mr-2"></i>Daftarkan wajah kandidat di bawah. Live absensi membandingkan dengan database lokal (pickle).
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-image mr-1 text-indigo-500"></i>Upload Foto Referensi (sesi)</label>
+            <div class="flex gap-3 flex-wrap">
+              <input type="file" id="reference-image-input" accept="image/*" class="light-input flex-1 min-w-[200px] p-2 text-sm"/>
+              <button type="button" id="upload-reference-btn" class="btn-indigo px-4 py-2 text-sm whitespace-nowrap">
+                <i class="fas fa-upload mr-1"></i>Upload
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-user-plus mr-1 text-purple-600"></i>Registrasi Wajah Baru</label>
+            <div class="flex gap-3 flex-wrap">
+              <input type="text" id="register-name-input" placeholder="Nama pengguna (sama dengan CV)" class="light-input flex-1 min-w-[200px] p-2 text-sm"/>
+              <button type="button" id="register-face-btn" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 transition whitespace-nowrap">
+                <i class="fas fa-user-plus mr-1"></i>Daftar dari Kamera
+              </button>
+            </div>
+          </div>
+          <div class="p-4 rounded-lg border border-gray-200 bg-gray-50">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-semibold text-gray-800">Database Wajah</h3>
+              <div class="flex gap-2">
+                <button type="button" id="load-face-db-btn" class="text-blue-600 text-sm hover:underline"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+                <button type="button" id="clear-face-db-btn" class="text-red-600 text-sm hover:underline">Hapus Semua</button>
+              </div>
+            </div>
+            <span class="text-xs text-gray-500">Tersimpan: <strong id="face-db-count" class="text-indigo-600">0</strong></span>
+            <div id="face-database-list" class="text-sm text-gray-700 mt-2 grid gap-2">Belum ada wajah terdaftar.</div>
+          </div>
+          <button type="button" id="verify-database-btn" class="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition font-medium hidden" data-browser-only="1">
+            <i class="fas fa-check-double mr-1"></i>Verifikasi Sekali (Browser)
+          </button>
+        </div>
+      </details>
+
+      <button type="button" id="proceed-to-cv-analysis-btn" disabled class="w-full mt-4 btn-indigo btn-shine py-2.5 px-6 text-sm font-semibold transition opacity-50 cursor-not-allowed">
+        <i class="fas fa-arrow-right mr-2"></i>Lanjut ke Analisis CV
+      </button>
+      <button type="button" id="back-to-cv-upload-btn" class="mt-2 w-full bg-gray-200 text-gray-700 py-2 px-6 rounded-lg text-sm font-medium hover:bg-gray-300 transition">
+        <i class="fas fa-arrow-left mr-2"></i>Kembali ke Upload CV
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: CV ANALYSIS + PORTFOLIO ANALYZER -->
+  <div id="cv-analysis-section" class="max-w-4xl mx-auto hidden anim-section">
+    <div class="white-panel white-panel--compact p-6 md:p-8 anim-fade-up">
+      <div class="text-center mb-6 anim-fade-up">
+        <div class="icon-ring icon-ring--indigo mx-auto mb-3" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-color:#86efac;">
+          <i class="fas fa-chart-pie text-2xl text-green-600"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Analisis CV Anda</h2>
+        <p class="text-gray-600 text-sm">Berikut hasil yang ditemukan dari CV Anda</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="stat-card stat-card--blue anim-fade-up anim-delay-1">
+          <i class="fas fa-briefcase text-blue-600 text-2xl mb-2"></i>
+          <h3 class="text-sm font-semibold text-gray-700 mb-1">Level Pengalaman</h3>
+          <p class="text-xl font-bold text-blue-600" id="exp-level-badge">Junior</p>
+        </div>
+        <div class="stat-card stat-card--purple anim-fade-up anim-delay-2">
+          <i class="fas fa-cogs text-purple-600 text-2xl mb-2"></i>
+          <h3 class="text-sm font-semibold text-gray-700 mb-1">Skills Ditemukan</h3>
+          <p class="text-xl font-bold text-purple-600" id="skills-count">0</p>
+        </div>
+        <div class="stat-card stat-card--green anim-fade-up anim-delay-3">
+          <i class="fas fa-tags text-green-600 text-2xl mb-2"></i>
+          <h3 class="text-sm font-semibold text-gray-700 mb-1">Kategori</h3>
+          <p class="text-xl font-bold text-green-600" id="categories-count">0</p>
+        </div>
+      </div>
+      <div class="mb-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-star text-yellow-500 mr-2"></i>Skill Utama</h3>
+        <div id="skills-list" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="mb-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-code text-blue-600 mr-2"></i>Bahasa Pemrograman</h3>
+        <div id="languages-list" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- ===== PORTFOLIO ANALYZER (CV Screening hanya) ===== -->
+      <div class="border-t border-gray-200 mt-8 pt-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-search text-indigo-500 mr-2"></i>🔍 AI Portfolio Analyzer
+          </h3>
+          <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-semibold">CV Screening</span>
+        </div>
+        <p class="text-gray-500 text-sm mb-5">Analisis otomatis akun GitHub & LinkedIn kandidat untuk melengkapi penilaian CV.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fab fa-github mr-1"></i>GitHub URL / Username</label>
+            <input type="text" id="portfolio-github-url" placeholder="https://github.com/username atau hanya username" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fab fa-linkedin mr-1"></i>LinkedIn URL (opsional)</label>
+            <input type="text" id="portfolio-linkedin-url" placeholder="https://linkedin.com/in/username" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"/>
+          </div>
+        </div>
+
+        <!-- LinkedIn quick fill -->
+        <details class="mb-4">
+          <summary class="text-sm text-indigo-600 cursor-pointer font-medium mb-2">📋 Isi Data LinkedIn Manual (opsional)</summary>
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <input type="text" id="li-name" placeholder="Nama Lengkap" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="text" id="li-headline" placeholder="Headline / Jabatan" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="number" id="li-connections" placeholder="Jumlah Koneksi" min="0" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="text" id="li-skills" placeholder="Skills (pisah koma)" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="number" id="li-exp-years" placeholder="Total tahun pengalaman" min="0" step="0.5" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="number" id="li-certs" placeholder="Jumlah sertifikasi" min="0" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+            <input type="number" id="li-recs" placeholder="Jumlah rekomendasi" min="0" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"/>
+          </div>
+        </details>
+
+        <button id="portfolio-analyze-btn" class="w-full bg-indigo-600 text-white py-2.5 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition">
+          <i class="fas fa-search mr-2"></i>Analisis Portfolio
+        </button>
+
+        <!-- Portfolio result -->
+        <div id="portfolio-result" class="mt-4 hidden">
+          <div id="portfolio-result-content"></div>
+        </div>
+      </div>
+      <!-- END PORTFOLIO -->
+
+      <div class="mt-8 flex gap-3">
+        <button id="find-jobs-btn" class="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition">
+          <i class="fas fa-search mr-2"></i>Cari Posisi yang Cocok
+        </button>
+        <button id="back-to-face-btn" class="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-300 transition">
+          <i class="fas fa-arrow-left mr-2"></i>Kembali
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: JOB RECOMMENDATIONS -->
+  <div id="job-recommendations-section" class="max-w-4xl mx-auto hidden">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+      <div class="text-center mb-8">
+        <i class="fas fa-briefcase text-5xl text-purple-600 mb-4"></i>
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Rekomendasi Posisi</h2>
+        <p class="text-gray-600">Posisi terbaik berdasarkan analisis CV Anda</p>
+      </div>
+      <div id="jobs-list" class="space-y-4"></div>
+      <button id="back-to-cv-btn" class="mt-8 w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition">
+        <i class="fas fa-arrow-left mr-2"></i>Kembali ke Analisis CV
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 5: INTERVIEW SETUP -->
+  <div id="interview-setup-section" class="max-w-2xl mx-auto hidden">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+      <div class="text-center mb-8">
+        <i class="fas fa-headset text-5xl text-blue-600 mb-4"></i>
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Siap untuk Interview?</h2>
+        <p class="text-gray-600" id="job-selected-title">Posisi: Software Developer</p>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <h3 class="font-semibold text-blue-900 mb-2">Detail Interview:</h3>
+        <ul class="text-blue-800 space-y-2">
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Posisi: <span id="interview-job-title">Loading...</span></li>
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Perusahaan: <span id="interview-company">Loading...</span></li>
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Jumlah Pertanyaan: 10</li>
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Durasi: ~30 menit</li>
+          <li><i class="fas fa-shield-alt text-purple-600 mr-2"></i>Anti-Cheat: Aktif</li>
+          <li><i class="fas fa-smile text-green-600 mr-2"></i>Deteksi Emosi: Aktif</li>
+        </ul>
+      </div>
+      <button id="start-interview-btn" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition transform hover:scale-105">
+        <i class="fas fa-play mr-2"></i>Mulai Interview
+      </button>
+      <button id="choose-different-job-btn" class="mt-4 w-full bg-gray-400 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-500 transition">
+        <i class="fas fa-arrow-left mr-2"></i>Pilih Posisi Lain
+      </button>
+    </div>
+  </div>
+
+  <!-- INTERVIEW INTERFACE -->
+  <div id="interview-section" class="max-w-4xl mx-auto hidden">
+    <div class="bg-white rounded-lg shadow-lg">
+
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-lg">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold" id="interview-title">Interview in Progress</h2>
+            <p class="opacity-90">Role: <span id="current-role"></span></p>
+          </div>
+          <div class="text-right">
+            <div class="text-sm opacity-90">Pertanyaan</div>
+            <div class="text-2xl font-bold" id="question-counter">1/10</div>
+          </div>
+        </div>
+        <!-- Anti-cheat & emotion status bar -->
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span id="anticheat-module-badge" class="flex items-center gap-1"><i class="fas fa-shield-alt"></i> <span id="anticheat-module-label">Anti-Cheat...</span></span>
+          <span id="risk-bar-header" class="flex items-center gap-1"><i class="fas fa-tachometer-alt"></i> Risiko: <span id="risk-label-header" class="font-bold text-green-300">Rendah</span></span>
+          <span id="emotion-module-badge" class="flex items-center gap-1"><i class="fas fa-smile"></i> <span id="emotion-module-label">Emosi...</span></span>
+          <span id="emotion-header-badge" class="flex items-center gap-1">😐 <span id="emotion-label-header">neutral</span></span>
+        </div>
+      </div>
+
+      <!-- Webcam + Audio + SIBI -->
+      <div class="bg-gray-100 border-b border-gray-200 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Webcam with overlays -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-gray-800"><i class="fas fa-video text-red-500 mr-2"></i>Webcam</h3>
+              <button id="webcam-toggle-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-blue-700">
+                <i class="fas fa-camera mr-1"></i>Enable Webcam
+              </button>
+            </div>
+            <div id="webcam-container" class="bg-black rounded-lg overflow-hidden aspect-video border-2 border-gray-300 flex items-center justify-center relative">
+              <video id="webcam-video" width="100%" height="100%" autoplay playsinline muted style="display:none;object-fit:cover"></video>
+              <div id="webcam-placeholder" class="text-gray-500 text-center absolute inset-0 flex flex-col items-center justify-center">
+                <i class="fas fa-camera text-4xl mb-2"></i>
+                <p>Webcam off</p>
+              </div>
+              <!-- Emotion overlay -->
+              <div id="emotion-overlay" class="emotion-overlay"></div>
+              <!-- Risk overlay -->
+              <div id="risk-overlay" class="risk-overlay" style="display:none"></div>
+            </div>
+            <div id="webcam-status" class="text-xs text-gray-600 text-center">Click "Enable Webcam" to start</div>
+
+            <!-- SIBI Panel (inside interview) -->
+            <div class="sibi-panel" id="sibi-panel">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-white font-semibold text-sm">🤟 SIBI Recognition</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sibi-toggle" onchange="toggleSIBI(this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div id="sibi-display" class="sibi-display">
+                <span class="text-gray-500 text-xs">Aktifkan untuk mendeteksi isyarat SIBI</span>
+              </div>
+              <div class="flex gap-2 mt-2">
+                <button onclick="sibiClearSentence()" class="bg-slate-700 text-gray-300 px-2 py-1 rounded text-xs hover:bg-slate-600">🗑 Hapus</button>
+                <button onclick="sibiInsertToAnswer()" class="bg-blue-700 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 flex-1">📥 Masukkan ke Jawaban</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Recording -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-gray-800"><i class="fas fa-microphone text-red-500 mr-2"></i>Audio Recording</h3>
+              <div class="flex gap-2">
+                <button id="mic-toggle-btn" class="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700">
+                  <i class="fas fa-microphone mr-1"></i>Enable
+                </button>
+                <button id="tts-btn" class="bg-purple-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-purple-700" title="Dengarkan pertanyaan">
+                  <i class="fas fa-volume-up mr-1"></i>Listen
+                </button>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-300 rounded-lg p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700">Recording Status:</span>
+                <div id="recording-indicator" class="flex items-center gap-2">
+                  <span id="recording-status" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Idle</span>
+                  <div id="recording-pulse" class="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div id="audio-waveform" class="h-12 bg-gray-900 rounded-lg overflow-hidden relative">
+                <canvas id="waveform-canvas" width="300" height="48" class="w-full h-full"></canvas>
+                <span id="waveform-idle-text" class="absolute inset-0 flex items-center justify-center text-xs text-gray-400 pointer-events-none">Enable mic untuk waveform</span>
+              </div>
+              <div class="text-xs text-indigo-600 bg-indigo-50 rounded px-2 py-1 flex items-center gap-1">
+                <i class="fas fa-magic"></i><span>Start Recording lalu bicara — jawaban otomatis terisi!</span>
+              </div>
+              <div class="flex gap-2">
+                <button id="record-btn" class="flex-1 bg-red-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                  <i class="fas fa-circle mr-1"></i>Start Recording
+                </button>
+                <button id="stop-record-btn" class="flex-1 bg-orange-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                  <i class="fas fa-stop mr-1"></i>Stop
+                </button>
+              </div>
+              <div class="text-xs text-gray-600 flex items-center gap-1">
+                <i class="fas fa-clock mr-1"></i>Duration: <span id="recording-duration" class="font-mono font-semibold text-gray-800">00:00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat + Answer -->
+      <div class="p-6">
+        <div id="chat-messages" class="space-y-4 mb-6 max-h-96 overflow-y-auto"></div>
+        <div id="current-question-display" class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+          <h3 class="font-semibold text-blue-800 mb-2">Pertanyaan Saat Ini:</h3>
+          <p id="current-question-text" class="text-blue-900 text-lg"></p>
+        </div>
+        <div id="answer-input-section" class="space-y-4">
+          <label for="answer-input" class="block text-sm font-medium text-gray-700">
+            Jawaban Anda:
+            <span class="ml-2 text-xs text-indigo-500"><i class="fas fa-microphone"></i> Bisa via suara atau ketik</span>
+          </label>
+          <textarea id="answer-input" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Ketik jawaban Anda di sini, atau aktifkan mic dan bicara..."></textarea>
+          <div class="flex justify-between items-center">
+            <div class="text-sm text-gray-500"><span id="char-count">0</span> karakter</div>
+            <button id="submit-answer-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fas fa-paper-plane mr-2"></i>Submit Jawaban
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW RESULTS -->
+  <div id="results-section" class="max-w-4xl mx-auto hidden">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+      <div class="text-center mb-8">
+        <i class="fas fa-trophy text-5xl text-yellow-500 mb-4"></i>
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Interview Selesai!</h2>
+        <p class="text-gray-600">Berikut ringkasan performa Anda</p>
+      </div>
+      <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-8">
+        <div class="text-center">
+          <div class="text-6xl font-bold text-blue-600 mb-2" id="final-score">85</div>
+          <div class="text-xl text-gray-700 mb-2" id="pass-status"></div>
+          <div class="text-xl text-gray-700 mb-4" id="score-label">Very Good</div>
+          <div class="grid grid-cols-2 gap-4 text-left mb-4">
+            <div class="bg-white p-3 rounded-lg border border-gray-300">
+              <p class="text-xs font-semibold text-gray-500 mb-1">Kualitas Jawaban</p>
+              <p class="text-lg font-bold text-indigo-600" id="answer-quality-score">-</p>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-gray-300">
+              <p class="text-xs font-semibold text-gray-500 mb-1">Fokus Dampak</p>
+              <p class="text-lg font-bold text-indigo-600" id="impact-focus-score">-</p>
+            </div>
+          </div>
+          <div class="text-gray-600" id="overall-feedback"></div>
+        </div>
+      </div>
+
+      <!-- Emotion Report in results -->
+      <div id="emotion-report-section" class="mb-8 bg-green-50 border border-green-200 rounded-lg p-6 hidden">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-smile text-green-500 mr-2"></i>Laporan Emosi</h3>
+        <div id="emotion-report-content"></div>
+      </div>
+
+      <!-- Anti-cheat Report in results -->
+      <div id="anticheat-report-section" class="mb-8 bg-orange-50 border border-orange-200 rounded-lg p-6 hidden">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-shield-alt text-orange-500 mr-2"></i>Laporan Anti-Cheat</h3>
+        <div id="anticheat-report-content"></div>
+      </div>
+
+      <div class="space-y-6 mb-8">
+        <h3 class="text-xl font-semibold text-gray-800"><i class="fas fa-brain text-purple-500 mr-2"></i>Wawasan AI</h3>
+        <div id="ai-insights" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+      <div class="space-y-6 mb-8">
+        <h3 class="text-xl font-semibold text-gray-800"><i class="fas fa-chart-line text-blue-500 mr-2"></i>Analisis Kinerja</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div id="strengths-section" class="bg-green-50 rounded-lg p-4">
+            <h4 class="font-semibold text-green-800 mb-2">Kekuatan Anda</h4>
+            <div id="strengths-list" class="text-green-700"></div>
+          </div>
+          <div id="improvement-section" class="bg-yellow-50 rounded-lg p-4">
+            <h4 class="font-semibold text-yellow-800 mb-2">Area yang Perlu Ditingkatkan</h4>
+            <div id="improvement-list" class="text-yellow-700"></div>
+          </div>
+        </div>
+      </div>
+      <div class="space-y-6">
+        <h3 class="text-xl font-semibold text-gray-800">Umpan Balik Terperinci</h3>
+        <div id="detailed-feedback" class="space-y-4"></div>
+      </div>
+      <div class="flex justify-center space-x-4 mt-8 flex-wrap gap-3">
+        <button id="restart-interview-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+          <i class="fas fa-redo mr-2"></i>Interview Baru
+        </button>
+        <button id="download-results-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+          <i class="fas fa-download mr-2"></i>Download Hasil
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="app-footer text-white py-8 mt-16">
+  <div class="container mx-auto px-6 text-center">
+    <p class="text-gray-400">AI Interview System Enhanced — SIBI 🤟 | Emosi 😊 | Anti-Cheat 🛡 | Portfolio 🔍</p>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='advanced_features.js') }}"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script src="{{ url_for('static', filename='recruitment_report.js') }}"></script>
+</body>
+</html>

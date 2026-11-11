@@ -1,0 +1,371 @@
+<!--
+  index_additions.html
+  ====================
+  Potongan HTML ini perlu ditambahkan ke templates/index.html.
+  Letakkan di tempat yang sesuai dalam layout Anda.
+
+  CATATAN: Ini adalah SNIPPET, bukan file HTML lengkap.
+  Tambahkan bagian-bagian ini ke index.html yang sudah ada.
+-->
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: SIBI Panel (di dalam area video kandidat)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<div class="sibi-panel" id="sibi-panel" style="display:none">
+  <div class="sibi-panel-header">
+    <span>🤟 SIBI Recognition</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="sibi-toggle" onchange="toggleSIBI(this.checked)">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div id="sibi-display" class="sibi-display">
+    <span class="sibi-idle">Aktifkan untuk mulai mendeteksi isyarat SIBI</span>
+  </div>
+  <div class="sibi-controls">
+    <button onclick="window._sibiModule?.clearSentence()" class="btn-sm">🗑 Hapus Kalimat</button>
+    <button onclick="insertSIBIToAnswer()" class="btn-sm btn-primary">📥 Masukkan ke Jawaban</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: Emotion Badge (overlay di atas video)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<div id="emotion-overlay" class="emotion-overlay">
+  <!-- Diisi otomatis oleh EmotionModule -->
+</div>
+
+<!-- Risk Indicator (pojok kanan atas video) -->
+<div id="risk-indicator" class="risk-indicator">
+  <!-- Diisi otomatis oleh AntiCheatModule -->
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: Portfolio Analyzer Section
+  (bisa di tab/modal tersendiri, atau di halaman HR dashboard)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<div class="portfolio-section" id="portfolio-section">
+  <h3>🔍 AI Portfolio Analyzer</h3>
+  <p class="section-desc">Analisis otomatis akun GitHub & LinkedIn kandidat</p>
+
+  <div class="portfolio-form">
+    <div class="form-group">
+      <label for="github-url-input">GitHub URL / Username</label>
+      <input
+        type="text"
+        id="github-url-input"
+        placeholder="https://github.com/username atau hanya username"
+        class="form-control"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>LinkedIn (isi manual — API LinkedIn berbayar)</label>
+      <div class="linkedin-fields">
+        <input type="text" id="linkedin-url"         placeholder="LinkedIn URL"              class="form-control" />
+        <input type="text" id="linkedin-name"        placeholder="Nama Lengkap"              class="form-control" />
+        <input type="text" id="linkedin-headline"    placeholder="Headline / Jabatan"        class="form-control" />
+        <input type="number" id="linkedin-connections" placeholder="Jumlah Koneksi"          class="form-control" min="0" />
+        <input type="text" id="linkedin-skills"      placeholder="Skills (pisah koma)"       class="form-control" />
+        <input type="number" id="linkedin-exp-years" placeholder="Total tahun pengalaman"    class="form-control" min="0" step="0.5" />
+        <input type="number" id="linkedin-certs"     placeholder="Jumlah sertifikasi"        class="form-control" min="0" />
+        <input type="number" id="linkedin-recs"      placeholder="Jumlah rekomendasi"        class="form-control" min="0" />
+      </div>
+    </div>
+
+    <button onclick="runPortfolioAnalysis()" class="btn-primary" id="portfolio-btn">
+      🔍 Analisis Portfolio
+    </button>
+  </div>
+
+  <div id="portfolio-result" class="portfolio-result-container">
+    <!-- Diisi oleh PortfolioModule -->
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: Anti-Cheat Status Bar
+  (tampilkan di bagian bawah / header interview)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<div class="anticheat-bar" id="anticheat-bar" style="display:none">
+  <span class="anticheat-label">🛡 Monitoring Aktif</span>
+  <div id="risk-indicator-bar"></div>
+  <button onclick="showAntiCheatReport()" class="btn-sm">Lihat Laporan</button>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: CSS inline (atau pindahkan ke file CSS/style tag)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── SIBI Panel ─────────────────────────────────────────────────────────── */
+.sibi-panel {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.sibi-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.sibi-display {
+  min-height: 60px;
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  font-family: monospace;
+}
+.sibi-label {
+  font-size: 2.5em;
+  font-weight: 800;
+  color: #38bdf8;
+}
+.sibi-confidence {
+  font-size: 0.9em;
+  color: #94a3b8;
+  margin-left: 8px;
+}
+.sibi-sentence {
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #e2e8f0;
+  word-break: break-all;
+}
+.sibi-collecting, .sibi-idle { color: #94a3b8; font-size: 0.85em; }
+.sibi-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Emotion Overlay ─────────────────────────────────────────────────────── */
+.emotion-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+}
+.emotion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  font-size: 0.85em;
+}
+
+/* ── Risk Indicator ──────────────────────────────────────────────────────── */
+.risk-indicator {
+  font-size: 0.8em;
+  padding: 4px 8px;
+  background: rgba(0,0,0,.4);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Portfolio Section ───────────────────────────────────────────────────── */
+.portfolio-section {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 16px 0;
+}
+.portfolio-section h3 { margin-bottom: 4px; }
+.section-desc { color: #94a3b8; font-size: 0.9em; margin-bottom: 20px; }
+.portfolio-form .form-group { margin-bottom: 16px; }
+.portfolio-form label { display: block; font-size: 0.85em; margin-bottom: 6px; color: #cbd5e1; }
+.linkedin-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 600px) { .linkedin-fields { grid-template-columns: 1fr; } }
+
+.portfolio-result { padding: 16px 0; }
+.portfolio-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.overall-score { font-size: 3em; font-weight: 800; line-height: 1; }
+.score-number { font-size: 1em; }
+.score-label  { font-size: 0.4em; color: #94a3b8; }
+.portfolio-recommendation { flex: 1; font-size: 0.95em; line-height: 1.5; }
+
+.github-section { border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.github-header  { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.github-stats   { display: flex; gap: 24px; margin-bottom: 12px; }
+.stat span { font-size: 1.4em; font-weight: 700; display: block; }
+.stat label { font-size: 0.75em; color: #94a3b8; }
+.github-score { margin-left: auto; background: #0f172a; padding: 8px 12px; border-radius: 8px; }
+.github-languages { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.lang-badge { background: #1e40af22; border: 1px solid #3b82f6; color: #93c5fd; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+.github-repos { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.repo-card { background: #0f172a; border-radius: 8px; padding: 10px; font-size: 0.85em; }
+.repo-card a { color: #38bdf8; font-weight: 600; text-decoration: none; }
+.repo-lang { color: #94a3b8; margin: 0 8px; }
+.repo-stars { color: #fbbf24; }
+.repo-desc { color: #94a3b8; margin: 4px 0 0; font-size: 0.9em; }
+
+.portfolio-insights ul { list-style: none; padding: 0; }
+.portfolio-insights li { padding: 4px 0; font-size: 0.9em; }
+.portfolio-meta { color: #64748b; font-size: 0.8em; margin-top: 12px; }
+.portfolio-loading { text-align: center; padding: 40px; color: #94a3b8; }
+
+/* ── Anti-Cheat Bar ──────────────────────────────────────────────────────── */
+.anticheat-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85em;
+}
+.anticheat-label { font-weight: 600; color: #22c55e; }
+
+/* ── Toggle Switch ───────────────────────────────────────────────────────── */
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0; background: #475569; border-radius: 24px;
+  cursor: pointer; transition: .3s;
+}
+.slider:before {
+  content: ''; position: absolute; height: 18px; width: 18px;
+  left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s;
+}
+input:checked + .slider { background: #3b82f6; }
+input:checked + .slider:before { transform: translateX(20px); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-sm {
+  padding: 4px 10px; font-size: 0.8em; border-radius: 6px;
+  border: 1px solid #334155; background: transparent; color: #e2e8f0;
+  cursor: pointer; transition: background .2s;
+}
+.btn-sm:hover { background: #334155; }
+.btn-primary {
+  padding: 10px 20px; background: #3b82f6; color: white;
+  border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600;
+  cursor: pointer; transition: background .2s;
+}
+.btn-primary:hover { background: #2563eb; }
+</style>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+  TAMBAHKAN INI: Script Inisialisasi
+  (letakkan sebelum </body>, SETELAH script.js dan advanced_features.js)
+  ════════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Referensi global ke modul ──────────────────────────────────────────────
+let _advModules = null;
+
+// Panggil ini setelah sesi interview dimulai (di script.js, setelah socket emit 'start-interview')
+function startAdvancedFeatures(sessionId, videoElement) {
+  _advModules = window.initAdvancedFeatures(sessionId, videoElement);
+
+  // Aktifkan Anti-Cheat otomatis
+  _advModules.antiCheat.start(sessionId);
+  document.getElementById('anticheat-bar').style.display = 'flex';
+
+  // Aktifkan Emotion Detection otomatis
+  _advModules.emotion.start(sessionId);
+
+  // SIBI diaktifkan manual oleh user (toggle)
+  window._sibiModule = _advModules.sibi;
+
+  // Tampilkan SIBI panel
+  document.getElementById('sibi-panel').style.display = 'block';
+
+  console.log('[Advanced] Semua fitur dimulai untuk sesi:', sessionId);
+}
+
+// ── SIBI Toggle ────────────────────────────────────────────────────────────
+function toggleSIBI(enabled) {
+  if (!window._sibiModule) return;
+  const sessionId = window._currentSessionId || 'default';
+  const video = document.getElementById('localVideo') || document.querySelector('video');
+  if (enabled) {
+    window._sibiModule.video = video;
+    window._sibiModule.start(sessionId);
+  } else {
+    window._sibiModule.stop();
+  }
+}
+
+function insertSIBIToAnswer() {
+  if (!window._sibiModule) return;
+  const textarea = document.getElementById('answerInput') || document.querySelector('textarea');
+  if (textarea && window._sibiModule.fullSentence) {
+    textarea.value += (textarea.value ? ' ' : '') + window._sibiModule.fullSentence.trim();
+    window._sibiModule.clearSentence();
+  }
+}
+
+// ── Portfolio Analysis ─────────────────────────────────────────────────────
+async function runPortfolioAnalysis() {
+  const btn = document.getElementById('portfolio-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Menganalisis...';
+
+  const githubUrl = document.getElementById('github-url-input')?.value?.trim();
+  const linkedinUrl = document.getElementById('linkedin-url')?.value?.trim();
+  const linkedinName = document.getElementById('linkedin-name')?.value?.trim();
+
+  let linkedinData = null;
+  if (linkedinUrl || linkedinName) {
+    const skillsStr = document.getElementById('linkedin-skills')?.value || '';
+    const expYears  = parseFloat(document.getElementById('linkedin-exp-years')?.value || '0');
+    linkedinData = {
+      url:         linkedinUrl,
+      name:        linkedinName,
+      headline:    document.getElementById('linkedin-headline')?.value?.trim() || '',
+      connections: parseInt(document.getElementById('linkedin-connections')?.value || '0'),
+      skills:      skillsStr.split(',').map(s => s.trim()).filter(Boolean),
+      experience:  expYears > 0 ? [{ title: 'Experience', company: '', duration_years: expYears }] : [],
+      certifications: Array(parseInt(document.getElementById('linkedin-certs')?.value || '0')).fill(''),
+      recommendations: parseInt(document.getElementById('linkedin-recs')?.value || '0')
+    };
+  }
+
+  const sessionId = window._currentSessionId || 'portfolio-' + Date.now();
+  const role = window._currentRole || 'software-developer';
+
+  await _advModules?.portfolio?.analyze(sessionId, githubUrl, linkedinData, role);
+
+  btn.disabled = false;
+  btn.textContent = '🔍 Analisis Portfolio';
+}
+
+// ── Anti-Cheat Report Modal ────────────────────────────────────────────────
+async function showAntiCheatReport() {
+  if (!_advModules?.antiCheat) return;
+  const report = await _advModules.antiCheat.getReport();
+  alert(
+    `Laporan Anti-Cheat\n` +
+    `Risiko: ${report.risk_level.toUpperCase()} (${report.risk_score}/100)\n` +
+    `Pelanggaran Total: ${report.total_violations}\n\n` +
+    `${report.recommendation}`
+  );
+}
+
+// ── Check answer saat submit ───────────────────────────────────────────────
+// Panggil ini dari handler submit jawaban yang sudah ada di script.js
+async function onAnswerSubmit(answerText) {
+  if (_advModules?.antiCheat) {
+    await _advModules.antiCheat.checkAnswerText(answerText);
+  }
+}
+
+// ── SIBI → auto-fill textarea ─────────────────────────────────────────────
+document.addEventListener('sibi-sentence', (e) => {
+  const textarea = document.getElementById('answerInput') || document.querySelector('textarea');
+  if (textarea) {
+    // Hanya update placeholder — user bisa klik "Masukkan ke Jawaban"
+    console.log('[SIBI] Kalimat terkumpul:', e.detail.sentence);
+  }
+});
+</script>
